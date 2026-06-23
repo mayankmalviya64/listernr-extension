@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Listenr — Read any page aloud",
+  "version": "0.2.0",
+  "description": "Reads the readable text of any web page aloud with synced highlighting and keyboard controls.",
+  "permissions": ["scripting", "storage", "offscreen", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Listenr"
+  },
+  "commands": {
+    "rate-up": {
+      "suggested_key": { "default": "Alt+Shift+Up" },
+      "description": "Increase speed"
+    },
+    "rate-down": {
+      "suggested_key": { "default": "Alt+Shift+Down" },
+      "description": "Decrease speed"
+    },
+    "next-block": {
+      "suggested_key": { "default": "Alt+Shift+Right" },
+      "description": "Jump forward one sentence/block"
+    },
+    "prev-block": {
+      "suggested_key": { "default": "Alt+Shift+Left" },
+      "description": "Jump backward one sentence/block"
+    },
+    "toggle-play": {
+      "description": "Play / Pause (set a key at chrome://extensions/shortcuts)"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

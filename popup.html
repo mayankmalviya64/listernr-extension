@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{width:300px;font-family:'Nunito',sans-serif;background:#fff;color:#0b2a5c;-webkit-font-smoothing:antialiased;}
+  .head{display:flex;align-items:center;gap:11px;padding:12px 13px 11px;background:linear-gradient(135deg,#0a3d8f 0%,#0e63b3 55%,#13b0b8 140%);}
+  .logo{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);}
+  .title{font-size:17px;font-weight:800;color:#fff;letter-spacing:-.3px;line-height:1.05;}
+  .sub{font-size:11px;font-weight:600;color:rgba(255,255,255,.78);}
+  .badge{margin-left:auto;font-size:9.5px;font-weight:800;letter-spacing:.8px;color:#fff;background:rgba(255,255,255,.18);padding:4px 8px;border-radius:999px;}
+  .body{padding:14px;display:flex;flex-direction:column;gap:12px;}
+  .label{font-size:10.5px;font-weight:800;letter-spacing:1px;color:#7d93b3;}
+  select{width:100%;font-family:inherit;font-size:13.5px;font-weight:700;color:#0b2a5c;background:#f3f7fc;border:1.5px solid #e1e9f4;border-radius:11px;padding:10px 11px;cursor:pointer;outline:none;}
+  select:focus{border-color:#0e7fb8;}
+  .row{display:flex;align-items:center;}
+  .pill{margin-left:auto;font-size:14px;font-weight:800;color:#0a3d8f;background:#e3edfa;padding:3px 11px;border-radius:999px;min-width:46px;text-align:center;}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:7px;border-radius:999px;outline:none;cursor:pointer;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid #0e7fb8;box-shadow:0 3px 8px rgba(10,61,143,.32);cursor:pointer;}
+  .ends{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .endlbl{font-size:11px;font-weight:800;color:#9aabc4;width:22px;}
+  .ctrls{display:flex;align-items:center;gap:16px;}
+  .cbtn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eef3f9;border:1px solid #e1e9f4;color:#0a3d8f;cursor:pointer;flex:none;}
+  .cbtn:hover{background:#e3edfa;}
+  .play{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a3d8f,#0e7fb8);color:#fff;border:none;cursor:pointer;flex:none;box-shadow:0 8px 18px rgba(10,61,143,.3);}
+  .status{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;color:#6b7f9c;padding:2px 2px 0;}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;}
+  .err{display:none;flex-direction:column;align-items:center;text-align:center;gap:8px;border-radius:14px;padding:18px 16px;}
+  .err .etitle{font-size:13.5px;font-weight:800;}
+  .err .emsg{font-size:11.5px;font-weight:600;color:#6b7f9c;line-height:1.4;}
+  kbd{font-family:inherit;background:#eef3f9;border:1px solid #e1e9f4;border-bottom-width:2px;border-radius:5px;padding:1px 5px;font-size:9.5px;font-weight:800;color:#0a3d8f;}
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="logo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"></path><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19.5 6a8 8 0 0 1 0 12"></path></svg>
+    </div>
+    <div>
+      <div class="title">Listenr</div>
+      <div class="sub">Reads any page aloud</div>
+    </div>
+    <span class="badge">TTS</span>
+  </div>
+
+  <div class="body" id="main">
+    <div style="display:flex;flex-direction:column;gap:7px;">
+      <span class="label">VOICE</span>
+      <select id="voice"></select>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:9px;">
+      <div class="row">
+        <span class="label">SPEED</span>
+        <span class="pill" id="rateLabel">1×</span>
+      </div>
+      <input type="range" id="rate" min="1" max="4" step="0.1" value="1">
+      <div class="ends">
+        <span class="endlbl">1×</span>
+        <div class="ctrls">
+          <button class="cbtn" id="prev" title="Previous block">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M18 5.5v13L9.2 12z"></path><rect x="5.5" y="5.5" width="2.6" height="13" rx="1.1"></rect></svg>
+          </button>
+          <button class="play" id="toggle" title="Play / Pause">
+            <svg id="icoPlay" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="margin-left:2px;"><path d="M7 4.5v15l13-7.5z"></path></svg>
+            <svg id="icoPause" width="19" height="19" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><rect x="6" y="5" width="4" height="14" rx="1.3"></rect><rect x="14" y="5" width="4" height="14" rx="1.3"></rect></svg>
+          </button>
+          <button class="cbtn" id="next" title="Next block">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5.5v13L14.8 12z"></path><rect x="15.9" y="5.5" width="2.6" height="13" rx="1.1"></rect></svg>
+          </button>
+        </div>
+        <span class="endlbl" style="text-align:right;">4×</span>
+      </div>
+    </div>
+
+    <div class="status" id="status">
+      <span class="dot" id="dot" style="background:#9aabc4;"></span>
+      <span id="statusText">Loading page text…</span>
+    </div>
+
+    <div style="display:flex;gap:6px 10px;flex-wrap:wrap;border-top:1px solid #eef3f9;padding-top:10px;margin-top:2px;font-size:10px;font-weight:700;color:#9aabc4;">
+      <span style="display:flex;align-items:center;gap:5px;"><kbd>⌥⇧↑</kbd> faster</span>
+      <span style="display:flex;align-items:center;gap:5px;"><kbd>⌥⇧↓</kbd> slower</span>
+      <span style="display:flex;align-items:center;gap:5px;"><kbd>⌥⇧→</kbd> forward</span>
+      <span style="display:flex;align-items:center;gap:5px;"><kbd>⌥⇧←</kbd> back</span>
+      <span style="display:flex;align-items:center;gap:5px;">click text to read from there</span>
+    </div>
+  </div>
+
+  <div class="body err" id="err">
+    <span style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;" id="eicon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg>
+    </span>
+    <span class="etitle" id="etitle"></span>
+    <span class="emsg" id="emsg"></span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
