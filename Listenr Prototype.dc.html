@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;}
+  #lr-page-scroll::-webkit-scrollbar{width:11px;}
+  #lr-page-scroll::-webkit-scrollbar-thumb{background:#cdd9e8;border-radius:99px;border:3px solid #fff;}
+  [data-lr-w]{cursor:pointer;}
+  [data-lr-w]:hover{box-shadow:0 0 0 2px #ffe9a0;border-radius:4px;}
+</style>
+</helmet>
+<div style="min-width:100%;min-height:100vh;box-sizing:border-box;padding:44px 48px 60px;background:#e8eef5;font-family:'Nunito',sans-serif;display:flex;flex-direction:column;align-items:center;gap:34px;">
+
+  <div style="width:100%;max-width:1180px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div style="width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#0a3d8f 0%,#0e63b3 55%,#13b0b8 140%);display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px rgba(10,61,143,0.3);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"></path><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19.5 6a8 8 0 0 1 0 12"></path></svg>
+      </div>
+      <div style="display:flex;flex-direction:column;line-height:1.1;">
+        <span style="font-size:30px;font-weight:800;color:#0a2a5c;letter-spacing:-0.5px;">Listenr</span>
+        <span style="font-size:14.5px;font-weight:600;color:#5f739a;">Text-to-speech that reads any page aloud — top to bottom, word by word.</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #dce6f2;border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:700;color:#5f739a;">
+        <span style="width:16px;height:13px;border-radius:3px;background:#c7e6ff;display:inline-block;"></span>Current line
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #dce6f2;border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:700;color:#5f739a;">
+        <span style="width:16px;height:13px;border-radius:3px;background:#ffe14d;display:inline-block;"></span>Spoken word
+      </span>
+    </div>
+  </div>
+
+  <div style="width:100%;max-width:1180px;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 24px 64px rgba(11,42,92,0.18),0 2px 8px rgba(11,42,92,0.06);border:1px solid #dde7f2;">
+
+    <div style="display:flex;align-items:center;gap:14px;padding:11px 16px;background:#f4f7fb;border-bottom:1px solid #e4ebf4;">
+      <div style="display:flex;gap:7px;flex:none;">
+        <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57;"></span>
+        <span style="width:12px;height:12px;border-radius:50%;background:#febc2e;"></span>
+        <span style="width:12px;height:12px;border-radius:50%;background:#28c840;"></span>
+      </div>
+      <div style="flex:1;display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #e1e9f3;border-radius:999px;padding:7px 15px;max-width:560px;color:#7187a6;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#13b0b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+        <span style="font-size:13px;font-weight:600;">readlater.blog/quiet-power-of-reading-aloud</span>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex:none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#aab8cb" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <span style="width:1px;height:20px;background:#dce5f0;"></span>
+        <button onClick="{{ onTogglePopup }}" title="Toggle Listenr" style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;border:none;cursor:pointer;background:{{ extIconBg }};box-shadow:0 0 0 2px {{ extIconRing }};">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0e63b3" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"></path><path d="M16.5 8.5a5 5 0 0 1 0 7"></path></svg>
+          <span style="position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:#13b8b0;border:1.5px solid #fff;"></span>
+        </button>
+      </div>
+    </div>
+
+    <div id="lr-stage" style="position:relative;height:600px;background:#fff;">
+      <div id="lr-page-scroll" style="position:absolute;inset:0;overflow-y:auto;">
+
+        <div style="display:flex;align-items:center;gap:22px;padding:16px 40px;border-bottom:1px solid #eef2f7;color:#9aa9bf;font-size:13.5px;font-weight:700;background:#fcfdff;position:sticky;top:0;z-index:1;">
+          <span style="font-weight:800;color:#1f3a63;font-size:16px;">readlater</span>
+          <span>Essays</span><span>Focus</span><span>About</span>
+          <span style="margin-left:auto;display:inline-block;width:30px;height:30px;border-radius:50%;background:#dde7f3;"></span>
+        </div>
+
+        <div style="max-width:680px;margin:0 auto;padding:48px 40px 80px;">
+          <h1 data-listenr-block style="font-family:'Newsreader',serif;font-weight:600;font-size:38px;line-height:1.18;color:#142a4d;margin:0 0 14px;letter-spacing:-0.4px;">The Quiet Power of Reading Aloud</h1>
+          <p style="margin:0 0 30px;color:#8a98ad;font-size:13.5px;font-weight:700;letter-spacing:0.3px;">BY MAYA IYER · 6 MIN READ</p>
+
+          <p data-listenr-block style="font-family:'Newsreader',serif;font-size:19px;line-height:1.72;color:#33425c;margin:0 0 22px;">For most of human history, reading was something you did out loud. Silent reading is a surprisingly recent habit, and the spoken word still carries a clarity that the eye alone often misses.</p>
+
+          <p data-listenr-block style="font-family:'Newsreader',serif;font-size:19px;line-height:1.72;color:#33425c;margin:0 0 22px;">When a sentence is read to you, its rhythm becomes obvious. Pauses land where the meaning turns, and ideas you might have skimmed past suddenly ask to be noticed.</p>
+
+          <h2 data-listenr-block style="font-family:'Newsreader',serif;font-weight:600;font-size:26px;line-height:1.3;color:#142a4d;margin:14px 0 16px;">Why hearing changes understanding</h2>
+
+          <p data-listenr-block style="font-family:'Newsreader',serif;font-size:19px;line-height:1.72;color:#33425c;margin:0 0 22px;">Listening engages a different kind of attention. The voice sets a steady pace, so the reader is gently carried forward instead of racing ahead or drifting away.</p>
+
+          <p data-listenr-block style="font-family:'Newsreader',serif;font-size:19px;line-height:1.72;color:#33425c;margin:0 0 16px;">A few small benefits show up almost immediately:</p>
+
+          <ul style="margin:0 0 24px;padding-left:22px;display:flex;flex-direction:column;gap:11px;">
+            <li data-listenr-block style="font-family:'Newsreader',serif;font-size:19px;line-height:1.6;color:#33425c;">You catch awkward phrasing that the eye smooths over in silence.</li>
+            <li data-listenr-block style="font-family:'Newsreader',serif;font-size:19px;line-height:1.6;color:#33425c;">Long passages feel lighter when someone else carries the pace.</li>
+            <li data-listenr-block style="font-family:'Newsreader',serif;font-size:19px;line-height:1.6;color:#33425c;">Your eyes get to rest while your mind keeps moving.</li>
+          </ul>
+
+          <p data-listenr-block style="font-family:'Newsreader',serif;font-size:19px;line-height:1.72;color:#33425c;margin:0 0 22px;">That is the whole idea behind Listenr. It finds the real article on a page, skips the menus and clutter, and reads it back to you — highlighting each line and word so you never lose your place.</p>
+        </div>
+
+        <div style="border-top:1px solid #eef2f7;padding:26px 40px;color:#aab8cb;font-size:13px;font-weight:700;background:#fcfdff;text-align:center;">© readlater — footer links, newsletter signup, and social icons live here (and Listenr skips them).</div>
+      </div>
+
+      <div id="lr-popup-wrap" style="position:absolute;top:{{ posTop }}px;left:{{ posLeft }}px;z-index:30;transition:transform .44s cubic-bezier(.34,.02,.2,1),opacity .3s ease;transform-origin:100% 0;transform:{{ wrapTransform }};opacity:{{ wrapOpacity }};pointer-events:{{ wrapPE }};">
+        <span style="position:absolute;top:-7px;right:24px;width:14px;height:14px;background:#0a3d8f;transform:rotate(45deg);border-radius:3px;"></span>
+        <dc-import name="ListenrPopup" status="{{ status }}" error-type="none" rate="{{ rate }}" step="{{ speedStep }}" voices="{{ voices }}" selected-voice="{{ selectedVoice }}" dropdown-open="{{ dropdownOpen }}" current="{{ current }}" total="{{ total }}" on-play="{{ onPlay }}" on-pause="{{ onPause }}" on-resume="{{ onResume }}" on-stop="{{ onStop }}" on-toggle="{{ onToggle }}" on-prev="{{ onPrev }}" on-next="{{ onNext }}" on-rate-input="{{ onRateInput }}" on-toggle-dropdown="{{ onToggleDropdown }}" on-select-voice="{{ onSelectVoice }}" on-drag-start="{{ onDragStart }}" hint-size="300px,400px"></dc-import>
+      </div>
+    </div>
+  </div>
+
+  <div style="width:100%;max-width:1180px;display:flex;flex-direction:column;gap:18px;">
+    <div style="display:flex;flex-direction:column;gap:3px;">
+      <span style="font-size:20px;font-weight:800;color:#0a2a5c;letter-spacing:-0.3px;">Every popup state</span>
+      <span style="font-size:14px;font-weight:600;color:#5f739a;">The same compact popup across idle, reading, paused, voice picker, and the two error cases.</span>
+    </div>
+    <div style="display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap;">
+
+      <div style="display:flex;flex-direction:column;gap:10px;flex:none;width:320px;">
+        <span style="font-size:12.5px;font-weight:800;color:#7187a6;letter-spacing:0.3px;">IDLE · READY</span>
+        <dc-import name="ListenrPopup" status="idle" error-type="none" rate="1" voices="{{ voices }}" selected-voice="0" current="0" total="9" hint-size="320px,430px"></dc-import>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;flex:none;width:320px;">
+        <span style="font-size:12.5px;font-weight:800;color:#7187a6;letter-spacing:0.3px;">PLAYING · 1.5×</span>
+        <dc-import name="ListenrPopup" status="playing" error-type="none" rate="1.5" voices="{{ voices }}" selected-voice="2" current="4" total="9" hint-size="320px,440px"></dc-import>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;flex:none;width:320px;">
+        <span style="font-size:12.5px;font-weight:800;color:#7187a6;letter-spacing:0.3px;">PAUSED</span>
+        <dc-import name="ListenrPopup" status="paused" error-type="none" rate="2" voices="{{ voices }}" selected-voice="0" current="4" total="9" hint-size="320px,440px"></dc-import>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;flex:none;width:320px;">
+        <span style="font-size:12.5px;font-weight:800;color:#7187a6;letter-spacing:0.3px;">VOICE PICKER OPEN</span>
+        <dc-import name="ListenrPopup" status="idle" error-type="none" rate="1.25" voices="{{ voices }}" selected-voice="1" dropdown-open="true" current="0" total="9" hint-size="320px,560px"></dc-import>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;flex:none;width:320px;">
+        <span style="font-size:12.5px;font-weight:800;color:#7187a6;letter-spacing:0.3px;">ERROR · NO READABLE TEXT</span>
+        <dc-import name="ListenrPopup" status="idle" error-type="notext" rate="1" voices="{{ voices }}" selected-voice="0" hint-size="320px,470px"></dc-import>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;flex:none;width:320px;">
+        <span style="font-size:12.5px;font-weight:800;color:#7187a6;letter-spacing:0.3px;">ERROR · PROTECTED PAGE</span>
+        <dc-import name="ListenrPopup" status="idle" error-type="protected" rate="1" voices="{{ voices }}" selected-voice="0" hint-size="320px,480px"></dc-import>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;speedStep&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:0.1,&quot;min&quot;:0.05,&quot;max&quot;:0.5,&quot;step&quot;:0.05,&quot;tsType&quot;:&quot;number&quot;},&quot;lineHighlight&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#d4ebff&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;wordHighlight&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#ffe14d&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  state = { status: 'idle', rate: 1, selectedVoice: 0, dropdownOpen: false, blockIndex: 0, wordIndex: 0, popupOpen: true, pos: { left: 862, top: 16 } };
+
+  voices = [
+    { name: 'Google US English', lang: 'en-US' },
+    { name: 'Microsoft Aria (Online)', lang: 'en-US' },
+    { name: 'Samantha', lang: 'en-US' },
+    { name: 'Daniel', lang: 'en-GB' },
+    { name: 'Google UK English Female', lang: 'en-GB' },
+    { name: 'Rishi', lang: 'en-IN' },
+    { name: 'Veena', lang: 'en-IN' },
+  ];
+
+  get cfg() {
+    const p = this.props || {};
+    return {
+      step: Number(p.speedStep ?? 0.1),
+      min: 1,
+      max: 4,
+      line: p.lineHighlight ?? '#d4ebff',
+      word: p.wordHighlight ?? '#ffe14d',
+    };
+  }
+
+  componentDidMount() {
+    this.blocks = [];
+    const els = document.querySelectorAll('[data-listenr-block]');
+    els.forEach((el, bi) => {
+      const words = el.textContent.trim().split(/\s+/);
+      el.innerHTML = words.map((w, i) => `<span data-lr-w="${i}" style="border-radius:4px;padding:0 1px;">${w}</span>`).join(' ');
+      const spans = el.querySelectorAll('[data-lr-w]');
+      spans.forEach((sp, wi) => { sp.addEventListener('click', () => this.jumpTo(bi, wi)); });
+      this.blocks.push({ el, words: spans });
+    });
+    let saved = parseFloat(localStorage.getItem('listenr.speechRate'));
+    if (saved >= this.cfg.min && saved <= this.cfg.max) this.setState({ rate: saved });
+    requestAnimationFrame(() => {
+      const stage = document.getElementById('lr-stage');
+      if (stage) this.setState({ pos: { left: Math.max(6, stage.clientWidth - 300 - 18), top: 16 } });
+    });
+    this._onKey = (e) => {
+      const k = e.key;
+      if ((k === 'r' || k === 'R') && !e.altKey && !e.ctrlKey && !e.metaKey) { e.preventDefault(); this.setRate(1); return; }
+      if (!e.altKey) return;
+      if (k === 'ArrowUp') { e.preventDefault(); this.changeRate(this.cfg.step); }
+      else if (k === 'ArrowDown') { e.preventDefault(); this.changeRate(-this.cfg.step); }
+      else if (k === 'ArrowLeft') { e.preventDefault(); this.prevLine(); }
+      else if (k === 'ArrowRight') { e.preventDefault(); this.nextLine(); }
+      else if (k === ',') { e.preventDefault(); this.onToggle(); }
+    };
+    window.addEventListener('keydown', this._onKey);
+  }
+  componentWillUnmount() {
+    clearTimeout(this._timer);
+    window.removeEventListener('keydown', this._onKey);
+  }
+
+  clearHighlight() {
+    if (!this.blocks) return;
+    this.blocks.forEach((b) => {
+      b.el.style.background = '';
+      b.el.style.boxShadow = '';
+      b.el.style.borderRadius = '';
+      b.words.forEach((w) => { w.style.background = ''; w.style.boxShadow = ''; });
+    });
+  }
+  applyHighlight() {
+    if (!this.blocks) return;
+    this.clearHighlight();
+    const b = this.blocks[this.state.blockIndex];
+    if (!b) return;
+    b.el.style.background = this.cfg.line;
+    b.el.style.boxShadow = `-10px 0 0 ${this.cfg.line}, 10px 0 0 ${this.cfg.line}`;
+    b.el.style.borderRadius = '4px';
+    const w = b.words[this.state.wordIndex];
+    if (w) { w.style.background = this.cfg.word; w.style.boxShadow = `0 0 0 2px ${this.cfg.word}`; }
+    const scroller = document.getElementById('lr-page-scroll');
+    if (scroller) {
+      const top = b.el.offsetTop;
+      if (top < scroller.scrollTop + 90 || top > scroller.scrollTop + scroller.clientHeight - 140) {
+        scroller.scrollTo({ top: Math.max(0, top - 150), behavior: 'smooth' });
+      }
+    }
+  }
+
+  step() {
+    if (this.state.status !== 'playing') return;
+    this.applyHighlight();
+    const delay = Math.max(85, 290 / this.state.rate);
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => this.advance(), delay);
+  }
+  advance() {
+    if (this.state.status !== 'playing') return;
+    let { blockIndex, wordIndex } = this.state;
+    const block = this.blocks[blockIndex];
+    wordIndex++;
+    if (wordIndex >= block.words.length) {
+      blockIndex++; wordIndex = 0;
+      if (blockIndex >= this.blocks.length) {
+        clearTimeout(this._timer);
+        this.clearHighlight();
+        const sc = document.getElementById('lr-page-scroll');
+        if (sc) sc.scrollTo({ top: 0, behavior: 'smooth' });
+        this.setState({ status: 'finished', blockIndex: 0, wordIndex: 0 });
+        return;
+      }
+    }
+    this.setState({ blockIndex, wordIndex }, () => this.step());
+  }
+
+  onPlay = () => {
+    this.setState({ status: 'playing', blockIndex: 0, wordIndex: 0 }, () => this.step());
+  };
+  jumpTo = (bi, wi) => {
+    if (!this.blocks || !this.blocks[bi]) return;
+    clearTimeout(this._timer);
+    this.setState({ status: 'playing', blockIndex: bi, wordIndex: wi || 0 }, () => this.step());
+  };
+  prevLine = () => {
+    if (!this.blocks) return;
+    this.jumpTo(Math.max(0, this.state.blockIndex - 1), 0);
+  };
+  nextLine = () => {
+    if (!this.blocks) return;
+    this.jumpTo(Math.min(this.blocks.length - 1, this.state.blockIndex + 1), 0);
+  };
+  onToggle = () => {
+    const s = this.state.status;
+    if (s === 'playing') this.onPause();
+    else if (s === 'paused') this.onResume();
+    else this.onPlay();
+  };
+  onPause = () => { clearTimeout(this._timer); this.setState({ status: 'paused' }); };
+  onResume = () => { this.setState({ status: 'playing' }, () => this.step()); };
+  onStop = () => {
+    clearTimeout(this._timer);
+    this.clearHighlight();
+    this.setState({ status: 'idle', blockIndex: 0, wordIndex: 0 });
+  };
+  setRate = (rate) => {
+    const { min, max, step } = this.cfg;
+    rate = Math.round(rate / step) * step;
+    rate = Math.min(max, Math.max(min, rate));
+    rate = Math.round(rate * 100) / 100;
+    try { localStorage.setItem('listenr.speechRate', String(rate)); } catch (e) {}
+    this.setState({ rate });
+  };
+  changeRate(delta) { this.setRate(this.state.rate + delta); }
+  onRateInput = (e) => { this.setRate(Number(e.target.value)); };
+
+  onDragStart = (e) => {
+    const wrap = document.getElementById('lr-popup-wrap');
+    const stage = document.getElementById('lr-stage');
+    if (!wrap || !stage) return;
+    const wr = wrap.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+    this._drag = { px: e.clientX, py: e.clientY, left: wr.left - sr.left, top: wr.top - sr.top, w: wr.width };
+    this.setState({ pos: { left: this._drag.left, top: this._drag.top } });
+    window.addEventListener('pointermove', this.onDragMove);
+    window.addEventListener('pointerup', this.onDragEnd);
+    e.preventDefault();
+  };
+  onDragMove = (e) => {
+    if (!this._drag) return;
+    const stage = document.getElementById('lr-stage');
+    const sr = stage.getBoundingClientRect();
+    let left = this._drag.left + (e.clientX - this._drag.px);
+    let top = this._drag.top + (e.clientY - this._drag.py);
+    left = Math.max(6, Math.min(sr.width - this._drag.w - 6, left));
+    top = Math.max(6, Math.min(sr.height - 70, top));
+    this.setState({ pos: { left, top } });
+  };
+  onDragEnd = () => {
+    this._drag = null;
+    window.removeEventListener('pointermove', this.onDragMove);
+    window.removeEventListener('pointerup', this.onDragEnd);
+  };
+  onToggleDropdown = () => { this.setState((s) => ({ dropdownOpen: !s.dropdownOpen })); };
+  onTogglePopup = () => { this.setState((s) => ({ popupOpen: !s.popupOpen })); };
+  onSelectVoice = (i) => { this.setState({ selectedVoice: i, dropdownOpen: false }); };
+
+  renderVals() {
+    return {
+      voices: this.voices,
+      speedStep: this.cfg.step,
+      popupOpen: this.state.popupOpen,
+      onTogglePopup: this.onTogglePopup,
+      onDragStart: this.onDragStart,
+      posTop: this.state.pos.top,
+      posLeft: this.state.pos.left,
+      wrapTransform: this.state.popupOpen ? 'translate(0px,0px) scale(1)' : 'translate(64px,-42px) scale(0.04)',
+      wrapOpacity: this.state.popupOpen ? 1 : 0,
+      wrapPE: this.state.popupOpen ? 'auto' : 'none',
+      extIconBg: this.state.popupOpen ? '#e3edfa' : '#eef3f9',
+      extIconRing: this.state.popupOpen ? '#bfdcf7' : '#dbe6f3',
+      status: this.state.status,
+      rate: this.state.rate,
+      selectedVoice: this.state.selectedVoice,
+      dropdownOpen: this.state.dropdownOpen,
+      current: this.state.blockIndex + 1,
+      total: this.blocks ? this.blocks.length : 9,
+      onPlay: this.onPlay,
+      onPause: this.onPause,
+      onResume: this.onResume,
+      onStop: this.onStop,
+      onToggle: this.onToggle,
+      onPrev: this.prevLine,
+      onNext: this.nextLine,
+      onRateInput: this.onRateInput,
+      onToggleDropdown: this.onToggleDropdown,
+      onSelectVoice: this.onSelectVoice,
+    };
+  }
+}
+</script>
+</body>
+</html>
