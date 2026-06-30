@@ -5,8 +5,56 @@
   window.__listenrLoaded = true;
 
   const SKIP = new Set(['SCRIPT','STYLE','NOSCRIPT','NAV','HEADER','FOOTER','ASIDE','FORM','BUTTON','SVG','CANVAS','SELECT','TEXTAREA','SUP']);
-  // Containers whose text is navigational / non-prose — skip anything inside them.
-  const SKIP_CONTAINER = 'nav,header,footer,aside,.navbox,.infobox,.sidebar,.reflist,.references,.mw-editsection,.hatnote,.thumb,.toc,.mw-jump-link,.metadata,.navigation-not-searchable,figure';
+
+  // Containers whose text is navigational / non-prose — skip everything inside them.
+  // Covers: standard HTML landmarks, wiki chrome, ads, related stories, share bars,
+  // newsletter prompts, comment sections, author bios, and tag clouds.
+  const SKIP_CONTAINER = [
+    'nav','header','footer','aside',
+    'figure',
+    // Wikipedia chrome
+    '.navbox','.infobox','.sidebar','.reflist','.references',
+    '.mw-editsection','.hatnote','.thumb','.toc','.mw-jump-link',
+    '.metadata','.navigation-not-searchable',
+    // ads & sponsored slots
+    '[class*="advertisement"]','[class*="ad-slot"]','[class*="ad_slot"]',
+    '[class*="sponsored"]','[class*="promo"]',
+    '[id*="advertisement"]','[id*="dfp"]','[id*="ad-"]',
+    // related / recommended / "also read"
+    '[class*="related"]','[class*="recommended"]',
+    '[class*="also-read"]','[class*="alsoreads"]',
+    '[class*="more-stories"]','[class*="more-news"]',
+    '[class*="trending"]',
+    // social sharing
+    '[class*="social-share"]','[class*="share-bar"]','[class*="share-widget"]',
+    '[class*="sharebar"]','[class*="addthis"]',
+    // newsletter / subscription prompts
+    '[class*="newsletter"]','[class*="subscribe"]','[class*="subscription"]',
+    '[class*="paywall"]','[class*="piano-"]',
+    // comments
+    '[id="comments"]','[class*="comment-section"]','[class*="comments-area"]',
+    // author bios
+    '[class*="author-bio"]','[class*="author-box"]','[class*="author-widget"]',
+    // tag / category labels
+    '[class*="article-tags"]','[class*="story-tags"]','.tags',
+  ].join(',');
+
+  // Ordered list of CSS selectors for finding the article body, most reliable first.
+  // We pick the first one that contains at least 3 <p> elements.
+  const ARTICLE_ROOT_SELECTORS = [
+    '[itemprop="articleBody"]',   // schema.org — used by most major news sites
+    'article',
+    '[role="article"]',
+    // Common CMS / news site class names
+    '.artText',                   // Economic Times, Times of India
+    '.article-body','.article__body','.articleBody','.article-content',
+    '.story-body','.story-content','.story__body','.story__content',
+    '.post-content','.post-body','.entry-content','.entry-body',
+    '.content-body','.body-content','.main-content',
+    '#article-body','#story-body','#article-content','#main-content',
+    'main','[role="main"]',
+    '#mw-content-text',           // Wikipedia
+  ];
 
   let els = [];          // DOM element per block
   let texts = [];        // normalized text per block (matches what TTS receives)
@@ -35,15 +83,59 @@
 
   function norm(t) { return (t || '').replace(/\s+/g, ' ').trim(); }
 
+  // Walk up from each <p> tag and score ancestor elements by how much paragraph
+  // text they contain vs their total HTML size. The most text-dense container
+  // that isn't a skip zone is likely the article body.
+  // Used as a last resort when none of ARTICLE_ROOT_SELECTORS matches.
+  function findDensestRoot() {
+    const goodPs = [...document.querySelectorAll('p')].filter(p =>
+      !p.closest(SKIP_CONTAINER) && (p.innerText || '').trim().length > 40
+    );
+    if (goodPs.length < 3) return null;
+
+    const scores = new Map();
+    goodPs.forEach(p => {
+      let el = p.parentElement;
+      let depth = 0;
+      // Walk up max 10 levels — avoids scoring the whole <body>
+      while (el && el !== document.body && depth < 10) {
+        scores.set(el, (scores.get(el) || 0) + (p.innerText || '').trim().length);
+        el = el.parentElement;
+        depth++;
+      }
+    });
+
+    let best = null, bestScore = 0;
+    scores.forEach((textLen, el) => {
+      if (el.closest(SKIP_CONTAINER)) return;
+      // Ratio of good paragraph text to element HTML size — higher = more article-like
+      const score = textLen / Math.max(el.innerHTML.length, 1);
+      if (score > bestScore) { bestScore = score; best = el; }
+    });
+    return best;
+  }
+
+  // Find the most likely article body element on the page.
+  function findRoot() {
+    for (const sel of ARTICLE_ROOT_SELECTORS) {
+      try {
+        const el = document.querySelector(sel);
+        // Must have at least 3 paragraphs to count as a real article body
+        if (el && el.querySelectorAll('p').length >= 3) return el;
+      } catch (e) {}
+    }
+    return findDensestRoot() || document.body;
+  }
+
+  // Patterns that indicate a paragraph is noise, not article content.
+  // Matches things like "Also Read: ...", "Follow us on", "Subscribe now", etc.
+  const NOISE_TEXT = /^(also read|read also|read more|also see|also watch|follow us|subscribe|sign in|log in|advertisement|sponsored|promoted|tags:|share this|related:|you may also|don't miss)/i;
+
   function extract() {
     els = []; texts = [];
     const seen = new Set();
-    const root =
-      document.querySelector('article') ||
-      document.querySelector('main') ||
-      document.querySelector('[role="main"]') ||
-      document.querySelector('#mw-content-text') ||
-      document.body;
+    const root = findRoot();
+
     const nodes = root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,dd,dt');
     nodes.forEach((el) => {
       if (SKIP.has(el.tagName)) return;
@@ -51,15 +143,25 @@
       // skip elements whose text is mostly inside a nested block we already take
       if (el.querySelector('p,li,h1,h2,h3,h4,h5,h6,blockquote')) return;
       if (!visible(el)) return;
-      // strip wiki reference superscripts like [1][2] before normalizing
+
+      // strip wiki reference superscripts like [1][2]
       let t = norm((el.innerText || '').replace(/\[\d+\]/g, ''));
-      if (t.length < 2) return;
+
+      // Raise the minimum length to filter out labels, category names, etc.
+      if (t.length < 20) return;
       if (/^\[\d+\]$/.test(t)) return;
+      if (NOISE_TEXT.test(t)) return;
+
+      // Skip paragraphs that are mostly hyperlinks — they're navigation/related links
+      const linkChars = [...el.querySelectorAll('a')].reduce((n, a) => n + (a.innerText || '').trim().length, 0);
+      if (linkChars / Math.max(t.length, 1) > 0.6) return;
+
       if (seen.has(t)) return;
       seen.add(t);
       els.push(el);
       texts.push(t);
     });
+
     if (texts.length < 2) {
       const raw = norm(root.innerText).split(/(?<=[.!?])\s+/).filter(s => s.length > 30);
       // fall back to whole-body sentences with no element refs
