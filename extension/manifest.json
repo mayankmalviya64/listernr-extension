@@ -21,15 +21,15 @@
   },
   "commands": {
     "rate-up": {
-      "suggested_key": { "mac": "Alt+Up" },
+      "suggested_key": { "mac": "Alt+Up", "default": "Alt+Up" },
       "description": "Speed up by 0.1×"
     },
     "rate-down": {
-      "suggested_key": { "mac": "Alt+Down" },
+      "suggested_key": { "mac": "Alt+Down", "default": "Alt+Down" },
       "description": "Speed down by 0.1×"
     },
     "toggle-play": {
-      "suggested_key": { "mac": "Command+Period" },
+      "suggested_key": { "mac": "Command+Shift+Period", "default": "Ctrl+Shift+Period" },
       "description": "Play / Pause"
     }
   },
