@@ -131,6 +131,16 @@
     if (hit) { hit.el.classList.add('__lr-word'); lastWordEl = hit.el; }
   }
 
+  // Safe wrapper: after an extension reload the runtime connection is lost.
+  // chrome.runtime.id becomes undefined, and sendMessage throws "Extension context invalidated".
+  // Checking id first (and catching just in case) keeps the page error-free.
+  function safeSend(msg) {
+    try {
+      if (!chrome.runtime?.id) return; // context invalidated — bail silently
+      chrome.runtime.sendMessage(msg);
+    } catch (_) {}
+  }
+
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     switch (msg && msg.cmd) {
       case 'extract':   sendResponse({ blocks: extract() }); break;
@@ -170,6 +180,6 @@
     let sc = charOffsetAt(els[idx], e.clientX, e.clientY);
     const t = texts[idx] || '';
     while (sc > 0 && /\S/.test(t[sc - 1])) sc--;   // snap to start of clicked word
-    chrome.runtime.sendMessage({ cmd: 'jumpTo', index: idx, startChar: sc });
+    safeSend({ cmd: 'jumpTo', index: idx, startChar: sc });
   }, true);
 })();
