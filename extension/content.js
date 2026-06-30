@@ -7,36 +7,26 @@
   const SKIP = new Set(['SCRIPT','STYLE','NOSCRIPT','NAV','HEADER','FOOTER','ASIDE','FORM','BUTTON','SVG','CANVAS','SELECT','TEXTAREA','SUP']);
 
   // Containers whose text is navigational / non-prose — skip everything inside them.
-  // Covers: standard HTML landmarks, wiki chrome, ads, related stories, share bars,
-  // newsletter prompts, comment sections, author bios, and tag clouds.
+  // IMPORTANT: keep these selectors specific. Broad [class*="..."] patterns risk
+  // matching legitimate article content wrappers (e.g. "subscriber-content" on
+  // paid news sites would match [class*="subscribe"] and hide the whole article).
+  // Text-level noise (ads, "Also Read" links) is handled separately by NOISE_TEXT
+  // and the link-density check inside extract() — not here.
   const SKIP_CONTAINER = [
-    'nav','header','footer','aside',
-    'figure',
+    // HTML semantic landmarks — always non-article
+    'nav', 'header', 'footer', 'aside', 'figure',
     // Wikipedia chrome
-    '.navbox','.infobox','.sidebar','.reflist','.references',
-    '.mw-editsection','.hatnote','.thumb','.toc','.mw-jump-link',
-    '.metadata','.navigation-not-searchable',
-    // ads & sponsored slots
-    '[class*="advertisement"]','[class*="ad-slot"]','[class*="ad_slot"]',
-    '[class*="sponsored"]','[class*="promo"]',
-    '[id*="advertisement"]','[id*="dfp"]','[id*="ad-"]',
-    // related / recommended / "also read"
-    '[class*="related"]','[class*="recommended"]',
-    '[class*="also-read"]','[class*="alsoreads"]',
-    '[class*="more-stories"]','[class*="more-news"]',
-    '[class*="trending"]',
-    // social sharing
-    '[class*="social-share"]','[class*="share-bar"]','[class*="share-widget"]',
-    '[class*="sharebar"]','[class*="addthis"]',
-    // newsletter / subscription prompts
-    '[class*="newsletter"]','[class*="subscribe"]','[class*="subscription"]',
-    '[class*="paywall"]','[class*="piano-"]',
-    // comments
-    '[id="comments"]','[class*="comment-section"]','[class*="comments-area"]',
-    // author bios
-    '[class*="author-bio"]','[class*="author-box"]','[class*="author-widget"]',
-    // tag / category labels
-    '[class*="article-tags"]','[class*="story-tags"]','.tags',
+    '.navbox', '.infobox', '.sidebar', '.reflist', '.references',
+    '.mw-editsection', '.hatnote', '.thumb', '.toc',
+    '.mw-jump-link', '.metadata', '.navigation-not-searchable',
+    // Ad slots — specific enough to not collide with article class names
+    '[class*="ad-slot"]', '[class*="ad_slot"]',
+    '[class*="advertisement"]', '[id*="advertisement"]',
+    '[id*="dfp"]', '[class*="dfp-"]',
+    // Social share bars
+    '[class*="social-share"]', '[class*="share-bar"]', '[class*="sharebar"]',
+    // Comment sections
+    '[id="comments"]', '#disqus_thread', '.disqus-container',
   ].join(',');
 
   // Ordered list of CSS selectors for finding the article body, most reliable first.
