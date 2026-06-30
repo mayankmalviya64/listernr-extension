@@ -10,6 +10,7 @@ let S = {
   voiceURI: '',
   voices: [],
   startChar: 0,       // char offset to begin the current block at (click-to-read)
+  lastCharIndex: 0,   // most recent word-boundary char offset within the current speech segment
   error: null,        // null | 'protected' | 'notext'
   status: 'idle'      // idle | playing | paused | finished
 };
@@ -122,7 +123,7 @@ async function toggle() {
 async function next() {
   if (!S.blocks.length) { await loadTab(); }
   S.current = Math.min(S.blocks.length - 1, S.current + 1);
-  S.startChar = 0;
+  S.startChar = 0; S.lastCharIndex = 0;
   if (S.playing) await speakCurrent();
   else { toContent({ cmd: 'hlBlock', index: S.current }); broadcast(); }
 }
@@ -130,22 +131,37 @@ async function next() {
 async function prev() {
   if (!S.blocks.length) { await loadTab(); }
   S.current = Math.max(0, S.current - 1);
-  S.startChar = 0;
+  S.startChar = 0; S.lastCharIndex = 0;
   if (S.playing) await speakCurrent();
   else { toContent({ cmd: 'hlBlock', index: S.current }); broadcast(); }
 }
 
 function clampRate(r) { return Math.min(4, Math.max(1, Math.round(r * 10) / 10)); }
+
+// Restart speech from the char position we last heard — used when rate changes mid-playback.
+function resumeFromCurrentChar() {
+  S.startChar = (S.startChar || 0) + S.lastCharIndex;
+  S.lastCharIndex = 0;
+}
+
 async function changeRate(delta) {
   S.rate = clampRate(S.rate + delta);
   chrome.storage.local.set({ rate: S.rate });
-  if (S.playing) await speakCurrent(); else broadcast();
+  if (S.playing) {
+    // Keyboard shortcut — apply immediately, resume from current word
+    resumeFromCurrentChar();
+    await speakCurrent();
+  } else broadcast();
 }
+
+// Timer for debouncing slider rate changes while dragging
+let rateRestartTimer = null;
 
 async function jumpTo(index, startChar) {
   if (!S.blocks.length || S.status === 'idle') return; // only after a session has started
   S.current = Math.max(0, Math.min(S.blocks.length - 1, index));
   S.startChar = Math.max(0, startChar || 0);
+  S.lastCharIndex = 0;
   await speakCurrent();
 }
 
@@ -168,9 +184,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
       }
     } else if (msg.type === 'boundary') {
+      S.lastCharIndex = msg.charIndex;  // keep track of where TTS currently is
       toContent({ cmd: 'hlWord', index: S.current, charIndex: msg.charIndex + (S.startChar || 0) });
     } else if (msg.type === 'end') {
-      if (S.playing) { S.current++; S.startChar = 0; speakCurrent(); }
+      if (S.playing) { S.current++; S.startChar = 0; S.lastCharIndex = 0; speakCurrent(); }
     } else if (msg.type === 'error') {
       S.playing = false; S.status = 'paused'; broadcast();
     }
@@ -208,7 +225,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case 'setRate':
       S.rate = Number(msg.rate);
       chrome.storage.local.set({ rate: S.rate });
-      if (S.playing) speakCurrent(); else broadcast();
+      if (S.playing) {
+        // Slider may fire many events while dragging — snapshot position now and
+        // only restart once the user stops moving the slider (200ms of silence).
+        const resumeAt = (S.startChar || 0) + S.lastCharIndex;
+        clearTimeout(rateRestartTimer);
+        rateRestartTimer = setTimeout(() => {
+          if (!S.playing) { broadcast(); return; }
+          S.startChar = resumeAt;
+          S.lastCharIndex = 0;
+          speakCurrent();
+        }, 200);
+        broadcast(); // update rate display in popup immediately
+      } else broadcast();
       break;
   }
 });
