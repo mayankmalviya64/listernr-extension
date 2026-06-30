@@ -6,7 +6,7 @@ let S = {
   blocks: [],
   current: 0,
   playing: false,
-  rate: 1,
+  rate: 2,
   voiceURI: '',
   voices: [],
   startChar: 0,       // char offset to begin the current block at (click-to-read)
@@ -53,8 +53,7 @@ function broadcast() {
 function publicState() {
   return {
     total: S.blocks.length, current: S.current, playing: S.playing,
-    rate: S.rate, voiceURI: S.voiceURI, voices: S.voices,
-    error: S.error, status: S.status
+    rate: S.rate, error: S.error, status: S.status
   };
 }
 
@@ -157,7 +156,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // From offscreen (speech events)
   if (msg.from === 'offscreen') {
     if (msg.type === 'voices') {
-      if (msg.voices && msg.voices.length) { S.voices = msg.voices; broadcast(); }
+      if (msg.voices && msg.voices.length) {
+        S.voices = msg.voices;
+        // On macOS, lock to Samantha — no voice choice for the user
+        chrome.runtime.getPlatformInfo().then(info => {
+          if (info.os === 'mac') {
+            const sam = msg.voices.find(v => v.name === 'Samantha');
+            if (sam) S.voiceURI = sam.voiceURI;
+          }
+          broadcast();
+        });
+      }
     } else if (msg.type === 'boundary') {
       toContent({ cmd: 'hlWord', index: S.current, charIndex: msg.charIndex + (S.startChar || 0) });
     } else if (msg.type === 'end') {
@@ -174,8 +183,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       (async () => {
         await ensureOffscreen();
         toOffscreen({ cmd: 'getVoices' });
-        const st = await chrome.storage.local.get(['voiceURI', 'rate']);
-        if (st.voiceURI) S.voiceURI = st.voiceURI;
+        const st = await chrome.storage.local.get(['rate']);
         if (st.rate) S.rate = Number(st.rate);
         // If we're already reading the active tab, just resume the live state.
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -195,14 +203,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case 'next': next(); break;
     case 'prev': prev(); break;
     case 'jumpTo': jumpTo(msg.index, msg.startChar); break;
+    case 'rateDown': changeRate(-0.1); break;
+    case 'rateUp':   changeRate(0.1);  break;
     case 'setRate':
       S.rate = Number(msg.rate);
       chrome.storage.local.set({ rate: S.rate });
-      if (S.playing) speakCurrent(); else broadcast();
-      break;
-    case 'setVoice':
-      S.voiceURI = msg.voiceURI || '';
-      chrome.storage.local.set({ voiceURI: S.voiceURI });
       if (S.playing) speakCurrent(); else broadcast();
       break;
   }
@@ -211,8 +216,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // ---------- keyboard shortcuts ----------
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'toggle-play') toggle();
-  else if (command === 'next-block') next();
-  else if (command === 'prev-block') prev();
   else if (command === 'rate-up') changeRate(0.1);
   else if (command === 'rate-down') changeRate(-0.1);
 });

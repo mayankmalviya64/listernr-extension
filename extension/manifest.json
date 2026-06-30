@@ -21,23 +21,16 @@
   },
   "commands": {
     "rate-up": {
-      "suggested_key": { "default": "Alt+Shift+Up" },
-      "description": "Increase speed"
+      "suggested_key": { "mac": "Alt+Up" },
+      "description": "Speed up by 0.1×"
     },
     "rate-down": {
-      "suggested_key": { "default": "Alt+Shift+Down" },
-      "description": "Decrease speed"
-    },
-    "next-block": {
-      "suggested_key": { "default": "Alt+Shift+Right" },
-      "description": "Jump forward one sentence/block"
-    },
-    "prev-block": {
-      "suggested_key": { "default": "Alt+Shift+Left" },
-      "description": "Jump backward one sentence/block"
+      "suggested_key": { "mac": "Alt+Down" },
+      "description": "Speed down by 0.1×"
     },
     "toggle-play": {
-      "description": "Play / Pause (set a key at chrome://extensions/shortcuts)"
+      "suggested_key": { "mac": "Command+Period" },
+      "description": "Play / Pause"
     }
   },
   "icons": {
