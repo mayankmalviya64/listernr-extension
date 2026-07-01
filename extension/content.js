@@ -27,6 +27,11 @@
     '[class*="social-share"]', '[class*="share-bar"]', '[class*="sharebar"]',
     // Comment sections
     '[id="comments"]', '#disqus_thread', '.disqus-container',
+    '.comments-section', '.comment-post-container', '.post-comment-section',
+    // Related-article / "most read" recirculation widgets and tag-pill lists
+    // that some sites (e.g. Economic Times network) inject inside the same
+    // container as the actual article body.
+    '.also-read-section', '.news-tags-article',
   ].join(',');
 
   // Ordered list of CSS selectors for finding the article body, most reliable first.
@@ -45,6 +50,13 @@
     '#article-body','#story-body','#article-content','#main-content',
     'main','[role="main"]',
     '#mw-content-text',           // Wikipedia
+  ];
+
+  // Known "dek"/AI-summary blurb selectors — content shown right under the
+  // headline, outside both the header title and the article body div, that
+  // we always want to read even though it's not part of the chosen root.
+  const SUMMARY_SELECTORS = [
+    '.detail_synopsis',            // ETBrandEquity, ETCIO, etc.
   ];
 
   let els = [];          // DOM element per block
@@ -126,17 +138,20 @@
 
   // Patterns that indicate a paragraph is noise, not article content.
   // Matches things like "Also Read: ...", "Follow us on", "Subscribe now", etc.
-  const NOISE_TEXT = /^(also read|read also|read more|also see|also watch|follow us|subscribe|sign in|log in|advertisement|sponsored|promoted|tags:|share this|related:|you may also|don't miss)/i;
+  const NOISE_TEXT = /^(also read|read also|read more|also see|also watch|follow us|subscribe|sign in|log in|advertisement|sponsored|promoted|tags:|share this|related:|you may also|don't miss|join the community|download the|see more on)/i;
 
   // Some sites (e.g. the Economic Times network) inject "Read more at: <url>"
   // into every paragraph's DOM text as an anti-scraping measure. It's not real
   // content, so strip it out before we read/highlight anything.
   const READ_MORE_INLINE = /\s*read more at:?\s*https?:\/\/\S+/gi;
 
-  // Block-level tags that mark the boundary of a run of "flat" inline content.
-  // We stop a run here and leave these children exactly as they are — <ul>/<ol>
-  // already get walked for their <li> items by the normal extract() pass below.
-  const FLAT_RUN_BOUNDARY = new Set(['UL','OL','BLOCKQUOTE','FIGURE','TABLE','H1','H2','H3','H4','H5','H6','P','DIV']);
+  // Inline tags that are safe to keep inside a merged paragraph run. Anything
+  // else — including tags we've never seen before — is treated as a block
+  // boundary. This is deliberately an allowlist, not a blocklist: real-world
+  // pages inject all sorts of surprise wrappers (widgets, ad slots, spacer
+  // divs) as direct children of the article container, and we never want to
+  // accidentally merge one of those into a paragraph's text.
+  const FLAT_RUN_INLINE_TAGS = new Set(['A','STRONG','B','EM','I','SPAN','SUP','SUB','SMALL','U','MARK','ABBR','CITE','Q','TIME','LABEL']);
 
   // Some sites (e.g. the Economic Times network) don't wrap article paragraphs
   // in real <p> tags at all — the whole article is one flat <div> full of text,
@@ -146,16 +161,18 @@
   // article. This detects that pattern and wraps each <br><br>-separated run of
   // inline content in a real <span>, so it becomes a normal block that reading,
   // highlighting, and click-to-read all already know how to handle.
+  //
+  // We don't gate this on "does the container already have enough <p>/<li>
+  // markup" — some sites inject unrelated widgets (related articles, comments,
+  // tags, newsletter prompts) into the very same container as the article
+  // text, and those widgets alone can contain more markup than the real
+  // article does. Instead, safety comes from only ever looking at root's
+  // *direct* children and never descending into a block-level one — so a
+  // widget sitting in its own wrapper element is left completely untouched
+  // regardless of how much text it contains.
   function expandFlatTextRuns(root) {
     if (root.dataset.__lrExpanded) return; // already processed this root once
     root.dataset.__lrExpanded = '1';
-
-    const structured = root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,dd,dt');
-    const structuredLen = [...structured].reduce((n, el) => n + (el.innerText || '').length, 0);
-    const totalLen = (root.innerText || '').length;
-    // If the existing structured elements already cover most of the root's
-    // text, there's no flat text to rescue — leave the DOM untouched.
-    if (totalLen === 0 || structuredLen / totalLen > 0.6) return;
 
     let run = [];
     function flushRun() {
@@ -166,9 +183,12 @@
         span.className = '__lr-flatpara';
         run[0].before(span);
         run.forEach(n => span.appendChild(n));
-      } else {
-        run.forEach(n => n.remove());
       }
+      // else: too short to be a real paragraph on its own (e.g. a "Read more
+      // at:" label whose URL comes after the next <br><br>). Leave the nodes
+      // exactly where they are, unwrapped, instead of deleting them from the
+      // live page — they simply won't match any block selector extract()
+      // looks for, so they're silently skipped either way.
       run = [];
     }
 
@@ -178,18 +198,28 @@
       // <!-- PROMOSLOT -->. Comment.textContent returns that literal text, so
       // if we left these in a run they'd get read aloud as "PROMOSLOT".
       if (node.nodeType === Node.COMMENT_NODE) { node.remove(); return; }
-      if (node.nodeType === Node.ELEMENT_NODE && FLAT_RUN_BOUNDARY.has(node.tagName)) {
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName !== 'BR' && !FLAT_RUN_INLINE_TAGS.has(node.tagName)) {
         flushRun();
-        return; // leave this block-level child exactly where it is
+        return; // not a known-safe inline tag — leave it exactly where it is, untouched
       }
       if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'BR') {
         const prev = run[run.length - 1];
-        // Two <br> back to back is this site's paragraph break, not a real line break.
+        // Two <br> back to back is this site's paragraph break — but only
+        // treat it as one if the run built up so far actually looks like a
+        // paragraph. A short run (e.g. "Read more at:") is very likely an
+        // anti-scraping label that's split from its own URL by exactly this
+        // kind of double-<br>; if we split there, the URL survives on its own
+        // in the next run and nothing can recognize it as junk anymore. So a
+        // short run just keeps accumulating into the *next* run instead of
+        // being flushed — letting the eventual real paragraph boundary catch
+        // "Read more at: https://..." as one block, which the noise filters
+        // in extract() can then strip as a whole.
         if (prev && prev.nodeType === Node.ELEMENT_NODE && prev.tagName === 'BR') {
           run.pop();
+          const soFar = run.map(n => n.textContent || '').join('').trim();
           prev.remove();
-          flushRun();
           node.remove();
+          if (soFar.length > 20) flushRun();
           return;
         }
       }
@@ -219,6 +249,10 @@
       if (t.length < 20) return;
       if (/^\[\d+\]$/.test(t)) return;
       if (NOISE_TEXT.test(t)) return;
+      // A block that's nothing but a bare URL is never real editorial content —
+      // it's always boilerplate (e.g. an anti-scraping "Read more at:" link
+      // that ended up split from its label into its own block).
+      if (/^https?:\/\/\S+$/i.test(t)) return;
 
       // Skip paragraphs that are mostly hyperlinks — they're navigation/related links.
       // Ignore anchors whose visible text is itself a raw URL: real editorial links
@@ -236,6 +270,28 @@
       els.push(el);
       texts.push(t);
     });
+
+    // Always try to include the page's <h1>, plus any known "dek"/AI-summary
+    // blurb shown right under the headline. Both often live in a separate
+    // header wrapper next to the article root we found above — e.g.
+    // ETBrandEquity puts <h1> AND its ".detail_synopsis" AI-summary span
+    // inside ".article-section__header", never inside the body div we target
+    // — so without this they'd be silently skipped no matter which root we pick.
+    const lead = [];
+    const h1 = document.querySelector('h1');
+    if (h1 && visible(h1)) {
+      const t = norm((h1.innerText || '').replace(/\[\d+\]/g, ''));
+      if (t.length >= 5 && !seen.has(t)) { seen.add(t); lead.push([h1, t]); }
+    }
+    for (const sel of SUMMARY_SELECTORS) {
+      const el = document.querySelector(sel);
+      if (el && visible(el)) {
+        const t = norm((el.innerText || '').replace(/\[\d+\]/g, ''));
+        if (t.length >= 20 && !seen.has(t)) { seen.add(t); lead.push([el, t]); }
+      }
+    }
+    els.unshift(...lead.map(x => x[0]));
+    texts.unshift(...lead.map(x => x[1]));
 
     if (texts.length < 2) {
       const raw = norm(root.innerText).split(/(?<=[.!?])\s+/).filter(s => s.length > 30);
