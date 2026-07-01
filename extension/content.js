@@ -36,7 +36,8 @@
     'article',
     '[role="article"]',
     // Common CMS / news site class names
-    '.artText',                   // Economic Times, Times of India
+    '.artText',                   // Economic Times, Times of India (classic theme)
+    '.article-section__body__news', // ETBrandEquity, ETCIO, etc. (Times Internet "article-section" theme)
     '.article-body','.article__body','.articleBody','.article-content',
     '.story-body','.story-content','.story__body','.story__content',
     '.post-content','.post-body','.entry-content','.entry-body',
@@ -110,8 +111,14 @@
     for (const sel of ARTICLE_ROOT_SELECTORS) {
       try {
         const el = document.querySelector(sel);
-        // Must have at least 3 paragraphs to count as a real article body
-        if (el && el.querySelectorAll('p').length >= 3) return el;
+        if (!el) continue;
+        // Normally require at least 3 real <p> elements to count as an article
+        // body. Some sites (e.g. the Economic Times network) render the whole
+        // article as flat text with no <p> tags at all, so also accept a match
+        // that simply contains a lot of text — these selectors are specific
+        // enough (schema.org markup, <article>, or named CMS classes) that a
+        // large amount of text under them is a reliable signal on its own.
+        if (el.querySelectorAll('p').length >= 3 || (el.innerText || '').trim().length > 500) return el;
       } catch (e) {}
     }
     return findDensestRoot() || document.body;
@@ -121,12 +128,83 @@
   // Matches things like "Also Read: ...", "Follow us on", "Subscribe now", etc.
   const NOISE_TEXT = /^(also read|read also|read more|also see|also watch|follow us|subscribe|sign in|log in|advertisement|sponsored|promoted|tags:|share this|related:|you may also|don't miss)/i;
 
+  // Some sites (e.g. the Economic Times network) inject "Read more at: <url>"
+  // into every paragraph's DOM text as an anti-scraping measure. It's not real
+  // content, so strip it out before we read/highlight anything.
+  const READ_MORE_INLINE = /\s*read more at:?\s*https?:\/\/\S+/gi;
+
+  // Block-level tags that mark the boundary of a run of "flat" inline content.
+  // We stop a run here and leave these children exactly as they are — <ul>/<ol>
+  // already get walked for their <li> items by the normal extract() pass below.
+  const FLAT_RUN_BOUNDARY = new Set(['UL','OL','BLOCKQUOTE','FIGURE','TABLE','H1','H2','H3','H4','H5','H6','P','DIV']);
+
+  // Some sites (e.g. the Economic Times network) don't wrap article paragraphs
+  // in real <p> tags at all — the whole article is one flat <div> full of text,
+  // links and <strong> tags, with paragraph breaks marked only by two <br> in a
+  // row. Our normal node walk below only recognizes actual <p>/<li>/heading
+  // elements, so on a page like that it silently drops almost the entire
+  // article. This detects that pattern and wraps each <br><br>-separated run of
+  // inline content in a real <span>, so it becomes a normal block that reading,
+  // highlighting, and click-to-read all already know how to handle.
+  function expandFlatTextRuns(root) {
+    if (root.dataset.__lrExpanded) return; // already processed this root once
+    root.dataset.__lrExpanded = '1';
+
+    const structured = root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,dd,dt');
+    const structuredLen = [...structured].reduce((n, el) => n + (el.innerText || '').length, 0);
+    const totalLen = (root.innerText || '').length;
+    // If the existing structured elements already cover most of the root's
+    // text, there's no flat text to rescue — leave the DOM untouched.
+    if (totalLen === 0 || structuredLen / totalLen > 0.6) return;
+
+    let run = [];
+    function flushRun() {
+      if (!run.length) return;
+      const text = run.map(n => n.textContent || '').join('').trim();
+      if (text.length > 20) {
+        const span = document.createElement('span');
+        span.className = '__lr-flatpara';
+        run[0].before(span);
+        run.forEach(n => span.appendChild(n));
+      } else {
+        run.forEach(n => n.remove());
+      }
+      run = [];
+    }
+
+    // Snapshot childNodes first since we move nodes into new spans as we go.
+    [...root.childNodes].forEach((node) => {
+      // Sites like this one litter the article with ad-slot markers such as
+      // <!-- PROMOSLOT -->. Comment.textContent returns that literal text, so
+      // if we left these in a run they'd get read aloud as "PROMOSLOT".
+      if (node.nodeType === Node.COMMENT_NODE) { node.remove(); return; }
+      if (node.nodeType === Node.ELEMENT_NODE && FLAT_RUN_BOUNDARY.has(node.tagName)) {
+        flushRun();
+        return; // leave this block-level child exactly where it is
+      }
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'BR') {
+        const prev = run[run.length - 1];
+        // Two <br> back to back is this site's paragraph break, not a real line break.
+        if (prev && prev.nodeType === Node.ELEMENT_NODE && prev.tagName === 'BR') {
+          run.pop();
+          prev.remove();
+          flushRun();
+          node.remove();
+          return;
+        }
+      }
+      run.push(node);
+    });
+    flushRun();
+  }
+
   function extract() {
     els = []; texts = [];
     const seen = new Set();
     const root = findRoot();
+    expandFlatTextRuns(root);
 
-    const nodes = root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,dd,dt');
+    const nodes = root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,dd,dt,.__lr-flatpara');
     nodes.forEach((el) => {
       if (SKIP.has(el.tagName)) return;
       if (el.closest(SKIP_CONTAINER)) return;
@@ -134,16 +212,23 @@
       if (el.querySelector('p,li,h1,h2,h3,h4,h5,h6,blockquote')) return;
       if (!visible(el)) return;
 
-      // strip wiki reference superscripts like [1][2]
-      let t = norm((el.innerText || '').replace(/\[\d+\]/g, ''));
+      // strip wiki reference superscripts like [1][2] and "Read more at:" boilerplate
+      let t = norm((el.innerText || '').replace(/\[\d+\]/g, '').replace(READ_MORE_INLINE, ''));
 
       // Raise the minimum length to filter out labels, category names, etc.
       if (t.length < 20) return;
       if (/^\[\d+\]$/.test(t)) return;
       if (NOISE_TEXT.test(t)) return;
 
-      // Skip paragraphs that are mostly hyperlinks — they're navigation/related links
-      const linkChars = [...el.querySelectorAll('a')].reduce((n, a) => n + (a.innerText || '').trim().length, 0);
+      // Skip paragraphs that are mostly hyperlinks — they're navigation/related links.
+      // Ignore anchors whose visible text is itself a raw URL: real editorial links
+      // use descriptive anchor text, so a raw URL is always boilerplate (e.g. the
+      // "Read more at:" link above) and shouldn't count against real content.
+      const linkChars = [...el.querySelectorAll('a')].reduce((n, a) => {
+        const at = (a.innerText || '').trim();
+        if (/^https?:\/\//i.test(at)) return n;
+        return n + at.length;
+      }, 0);
       if (linkChars / Math.max(t.length, 1) > 0.6) return;
 
       if (seen.has(t)) return;
